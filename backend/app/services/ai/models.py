@@ -7,6 +7,8 @@ class MemeResult(BaseModel):
     model: str
     top_text: str = ""
     bottom_text: str = ""
+    feed_caption: str = ""
+    post_caption: str = ""
     caption_source: str = "overlay"  # overlay | baked-in (legacy)
 
 
