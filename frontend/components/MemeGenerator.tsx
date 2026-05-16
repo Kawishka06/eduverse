@@ -76,7 +76,7 @@ export default function MemeGenerator({ saveToLibrary = false }: Props) {
           onChange={(e) => setText(e.target.value)}
           disabled={isLoading}
           rows={4}
-          placeholder="e.g. programmer debugging HTML code"
+          placeholder={'Short topic, or add lines like:\nTop text: "Me before the exam"\nBottom text: "Brain: nope"'}
           className="mt-2 w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
       </label>
