@@ -1,13 +1,24 @@
 from functools import lru_cache
+<<<<<<< HEAD
 from typing import Literal
 
 from pydantic import field_validator
+=======
+from pathlib import Path
+from typing import Any
+
+from pydantic import AliasChoices, Field, field_validator, model_validator
+>>>>>>> 140e298 (Save local progress)
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Always load backend/.env regardless of process working directory
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+_ENV_FILE = _BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE) if _ENV_FILE.is_file() else ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -19,6 +30,13 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""
     supabase_jwt_secret: str = ""
+    # Optional: Postgres URI for scripts/apply_lesson_migrations.py (Dashboard → Database → URI)
+    supabase_db_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("SUPABASE_DB_URL", "DATABASE_URL"),
+    )
+    # Database password from Supabase Dashboard -> Settings -> Database (not the service role JWT)
+    supabase_db_password: str = Field(default="", validation_alias="SUPABASE_DB_PASSWORD")
 
     # fal.ai / AI Orchestrator
     fal_key: str = ""
@@ -27,11 +45,40 @@ class Settings(BaseSettings):
     fal_image_model: str = "fal-ai/flux/schnell"
     fal_video_model: str = "fal-ai/minimax-video/image-to-video"
     fal_vision_model: str = "fal-ai/florence-2-large/caption"
-    fal_tts_model: str = "fal-ai/kokoro/american-english"
+    fal_tts_model: str = "fal-ai/minimax/speech-02-hd"
     fal_llm_endpoint: str = "fal-ai/any-llm"
     fal_llm_model: str = "google/gemini-2.0-flash-001"
     fal_llm_max_tokens: int = 1024
     fal_request_timeout: float = 120.0
+    fal_character_model: str = "fal-ai/flux/schnell"
+    fal_lesson_workflow_id: str = ""
+    # Animate each scene (image-to-video) and mux character voice into the MP4 (needs ffmpeg).
+    lesson_enable_video_clips: bool = Field(default=True, validation_alias="LESSON_ENABLE_VIDEO_CLIPS")
+    lesson_video_timeout: float = Field(default=180.0, validation_alias="LESSON_VIDEO_TIMEOUT")
+    lesson_mux_voice_into_video: bool = Field(
+        default=True,
+        validation_alias="LESSON_MUX_VOICE_INTO_VIDEO",
+    )
+    # Target playback length per scene (~90–110 words of narration).
+    lesson_scene_target_seconds: float = Field(
+        default=45.0,
+        validation_alias="LESSON_SCENE_TARGET_SECONDS",
+    )
+
+    # Lesson features (file-based; no Supabase tables required)
+    lesson_data_dir: Path = Field(
+        default_factory=lambda: _BACKEND_DIR / "data" / "lessons",
+        validation_alias="LESSON_DATA_DIR",
+    )
+    # Public base URL for material file downloads (e.g. http://localhost:8000)
+    api_public_url: str = Field(default="http://localhost:8000", validation_alias="API_PUBLIC_URL")
+
+    # Learning agent — search_api_key OR tavily/serper keys from your .env
+    agent_max_turns: int = 6
+    search_api_key: str = ""
+    search_provider: str = "tavily"  # tavily | serper
+    tavily_api_key: str = Field(default="", validation_alias="TAVILY_API_KEY")
+    serper_api_key: str = Field(default="", validation_alias="SERPER_API_KEY")
 
     # Rate limits
     rate_limit_ai_per_hour: int = 30
@@ -59,6 +106,7 @@ class Settings(BaseSettings):
         r"192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$"
     )
 
+<<<<<<< HEAD
     @field_validator("allowed_url_hosts", "cors_origins", mode="before")
     @classmethod
     def split_csv(cls, value: object) -> object:
@@ -101,6 +149,56 @@ class Settings(BaseSettings):
             raise RuntimeError(
                 f"Missing required production env vars: {', '.join(missing)}"
             )
+=======
+    public_paths: tuple[str, ...] = (
+        "/posts/feed",
+        "/ai/meme",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/health",
+        "/health/db",
+    )
+>>>>>>> 140e298 (Save local progress)
+
+    @field_validator(
+        "supabase_url",
+        "supabase_anon_key",
+        "supabase_service_role_key",
+        "supabase_jwt_secret",
+        "supabase_db_password",
+        "fal_key",
+        "search_api_key",
+        "tavily_api_key",
+        "serper_api_key",
+        mode="before",
+    )
+    @classmethod
+    def strip_whitespace(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @model_validator(mode="after")
+    def resolve_search_api_key(self) -> "Settings":
+        if self.search_api_key:
+            return self
+        provider = (self.search_provider or "tavily").lower()
+        if provider == "serper" and self.serper_api_key:
+            self.search_api_key = self.serper_api_key
+        elif self.tavily_api_key:
+            self.search_api_key = self.tavily_api_key
+        elif self.serper_api_key:
+            self.search_api_key = self.serper_api_key
+        return self
+
+    @property
+    def ai_live(self) -> bool:
+        return bool(self.fal_key) and not self.fal_mock_mode
+
+    @property
+    def search_live(self) -> bool:
+        return bool(self.search_api_key)
 
 
 @lru_cache

@@ -118,12 +118,34 @@ async function authHeaders(): Promise<HeadersInit> {
   return headers;
 }
 
+<<<<<<< HEAD
 function throwApiError(body: unknown, fallback: string): never {
   const detail = (body as { detail?: unknown })?.detail;
   if (isAccountSuspendedDetail(detail) && typeof window !== "undefined") {
     window.location.href = "/suspended";
   }
   throw new Error(parseApiDetail(detail) || fallback);
+=======
+async function parseApiError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body.detail === "string") return body.detail;
+    if (Array.isArray(body.detail)) return body.detail.map(String).join("; ");
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(path, init);
+  } catch {
+    throw new Error(
+      "Cannot reach the server. Start the backend (cd backend && uvicorn main:app --reload) and refresh.",
+    );
+  }
+>>>>>>> 140e298 (Save local progress)
 }
 
 export type PresentationSlide = {
@@ -185,16 +207,179 @@ export async function generateMeme(text: string): Promise<MemeGenerateResponse> 
   return res.json();
 }
 
+export type LessonCharacter = {
+  id: string;
+  owner_id: string;
+  name: string;
+  personality: string;
+  teaching_style: string;
+  visual_description: string;
+  voice_style: string;
+  character_bible?: string | null;
+  reference_image_url?: string | null;
+  reference_sheet_urls: string[];
+  class_tag?: string | null;
+  visibility: "personal" | "class";
+  created_at: string;
+};
+
+export type LessonMaterial = {
+  id: string;
+  user_id: string;
+  filename: string;
+  content_type: string;
+  file_url: string;
+  extracted_text?: string | null;
+  created_at: string;
+};
+
+export type LessonScene = {
+  title: string;
+  narration: string;
+  visual_prompt: string;
+  on_screen_text: string;
+  image_url?: string | null;
+  audio_url?: string | null;
+  video_url?: string | null;
+};
+
+export type LessonVideoJob = {
+  job_id: string;
+  status: string;
+  progress: number;
+  title: string;
+  phase?: string | null;
+  scenes: LessonScene[];
+  playlist_url?: string | null;
+  error?: string | null;
+};
+
+export async function fetchCharacters(): Promise<LessonCharacter[]> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Sign in to manage characters.");
+  const headers = await authHeaders();
+  const res = await apiFetch("/api/characters", { headers });
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, "Failed to load characters"));
+  }
+  return res.json();
+}
+
+export async function createCharacter(payload: {
+  name: string;
+  personality: string;
+  teaching_style: string;
+  visual_description: string;
+  voice_style?: string;
+  visibility?: "personal" | "class";
+  class_tag?: string;
+  generate_art?: boolean;
+}): Promise<LessonCharacter> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Sign in to create a character.");
+  const headers = await authHeaders();
+  const res = await apiFetch("/api/characters", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      voice_style: "friendly",
+      generate_art: true,
+      visibility: "personal",
+      ...payload,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, "Failed to create character"));
+  }
+  return res.json();
+}
+
+export async function deleteCharacter(id: string): Promise<void> {
+  const headers = await authHeaders();
+  const res = await apiFetch(`/api/characters/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(await parseApiError(res, "Failed to delete character"));
+}
+
+export async function fetchMaterials(): Promise<LessonMaterial[]> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Sign in to use Lesson Studio.");
+  const headers = await authHeaders();
+  const res = await apiFetch("/api/materials", { headers });
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, "Failed to load materials"));
+  }
+  return res.json();
+}
+
+export async function uploadMaterial(file: File): Promise<LessonMaterial> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Sign in to upload materials.");
+  const form = new FormData();
+  form.append("file", file);
+  const headers: HeadersInit = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await apiFetch("/api/materials", {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, "Upload failed"));
+  }
+  return res.json();
+}
+
+export async function deleteMaterial(id: string): Promise<void> {
+  const headers = await authHeaders();
+  const res = await apiFetch(`/api/materials/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error(await parseApiError(res, "Failed to delete material"));
+}
+
+export async function startLessonVideo(
+  materialId: string,
+  characterId?: string | null,
+): Promise<LessonVideoJob> {
+  const headers = await authHeaders();
+  const res = await apiFetch("/api/lesson-video", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      material_id: materialId,
+      character_id: characterId ?? null,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, "Failed to start lesson video"));
+  }
+  return res.json();
+}
+
+export async function getLessonVideoJob(jobId: string): Promise<LessonVideoJob> {
+  const headers = await authHeaders();
+  const res = await apiFetch(`/api/lesson-video/${jobId}`, { headers });
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, "Failed to load job status"));
+  }
+  return res.json();
+}
+
 export async function savePost(
   contentUrl: string,
   caption?: string,
+  type: "meme" | "video" = "meme",
 ): Promise<Post> {
   const headers = await authHeaders();
   const res = await fetch(`${API_BASE}/posts`, {
     method: "POST",
     headers,
     body: JSON.stringify({
-      type: "meme",
+      type,
       content_url: contentUrl,
       caption: caption ?? null,
     }),

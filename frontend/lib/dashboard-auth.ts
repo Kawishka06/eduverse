@@ -24,3 +24,19 @@ export async function requireDashboardRole(
 
   return { role, token };
 }
+
+export async function requireDashboardSession(): Promise<{
+  role: AppRole;
+  token: string;
+  profile: Awaited<ReturnType<typeof fetchMe>>;
+}> {
+  const token = await getServerAccessToken();
+  if (!token) redirect("/login");
+
+  try {
+    const profile = await fetchMe(token);
+    return { role: normalizeRole(profile.role), token, profile };
+  } catch {
+    redirect("/login");
+  }
+}

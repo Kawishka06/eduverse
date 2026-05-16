@@ -1,26 +1,51 @@
+<<<<<<< HEAD
 import { parseApiDetail } from "@/lib/moderation-error";
+=======
+import { getAccessToken } from "@/lib/auth";
+>>>>>>> 140e298 (Save local progress)
 
 export type TutorMode = "standard" | "simple" | "meme";
 
+export type AgentStep = {
+  step_type: string;
+  tool_name?: string | null;
+  input?: Record<string, unknown> | null;
+  output?: string | null;
+};
+
 export type StreamEvent =
   | { type: "delta"; content: string }
-  | { type: "done"; mode?: string; model?: string };
+  | { type: "step"; step: AgentStep }
+  | { type: "done"; mode?: string; model?: string; steps?: AgentStep[] };
 
 export async function streamTutor(
   question: string,
   mode: TutorMode,
   onDelta: (chunk: string) => void,
   token?: string | null,
-): Promise<void> {
-  const headers: HeadersInit = { "Content-Type": "application/json" };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  options?: {
+    characterId?: string | null;
+    onStep?: (step: AgentStep) => void;
+  },
+): Promise<AgentStep[]> {
+  const authToken = token ?? (await getAccessToken());
+  if (!authToken) {
+    throw new Error("Sign in to use the AI tutor.");
   }
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${authToken}`,
+  };
 
   const res = await fetch("/api/tutor", {
     method: "POST",
     headers,
-    body: JSON.stringify({ question, mode }),
+    body: JSON.stringify({
+      question,
+      mode,
+      character_id: options?.characterId ?? null,
+    }),
   });
 
   if (!res.ok || !res.body) {
@@ -31,6 +56,7 @@ export async function streamTutor(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const steps: AgentStep[] = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -45,7 +71,18 @@ export async function streamTutor(
       const event = JSON.parse(line) as StreamEvent;
       if (event.type === "delta") {
         onDelta(event.content);
+      } else if (event.type === "step") {
+        steps.push(event.step);
+        options?.onStep?.(event.step);
+      } else if (event.type === "done" && event.steps) {
+        for (const s of event.steps) {
+          if (!steps.some((x) => x.tool_name === s.tool_name && x.output === s.output)) {
+            steps.push(s);
+          }
+        }
       }
     }
   }
+
+  return steps;
 }

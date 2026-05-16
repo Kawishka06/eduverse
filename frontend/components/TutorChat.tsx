@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { fetchCharacters, type LessonCharacter } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
-import { streamTutor, type TutorMode } from "@/lib/tutor";
+import { streamTutor, type AgentStep, type TutorMode } from "@/lib/tutor";
 
 type Role = "user" | "assistant";
 
@@ -11,6 +12,7 @@ type Message = {
   role: Role;
   content: string;
   streaming?: boolean;
+  steps?: AgentStep[];
 };
 
 const MODE_OPTIONS: { value: TutorMode; label: string; description: string }[] = [
@@ -23,20 +25,42 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function toolLabel(step: AgentStep): string {
+  const name = step.tool_name ?? "tool";
+  if (name === "calculator") return "Calculator";
+  if (name === "code_helper") return "Code review";
+  if (name === "search") return "Web search";
+  return name;
+}
+
 export default function TutorChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "assistant",
       content:
-        "Hi! I'm your EduVerse tutor. Ask anything — pick how you'd like me to explain it below.",
+        "Hi! I'm your EduVerse learning agent. I can use a calculator, review code (without running it), and search the web. Pick a character below for a custom tutor vibe.",
     },
   ]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<TutorMode>("standard");
+  const [characterId, setCharacterId] = useState<string>("");
+  const [characters, setCharacters] = useState<LessonCharacter[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getAccessToken().then(async (token) => {
+      if (!token) return;
+      try {
+        const list = await fetchCharacters();
+        setCharacters(list);
+      } catch {
+        /* optional */
+      }
+    });
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,12 +83,14 @@ export default function TutorChat() {
         role: "assistant",
         content: "",
         streaming: true,
+        steps: [],
       };
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
       try {
         const token = await getAccessToken();
+        const collectedSteps: AgentStep[] = [];
 
         await streamTutor(
           question,
@@ -72,18 +98,31 @@ export default function TutorChat() {
           (chunk) => {
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId
-                  ? { ...m, content: m.content + chunk }
-                  : m,
+                m.id === assistantId ? { ...m, content: m.content + chunk } : m,
               ),
             );
           },
           token,
+          {
+            characterId: characterId || null,
+            onStep: (step) => {
+              collectedSteps.push(step);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, steps: [...(m.steps ?? []), step] }
+                    : m,
+                ),
+              );
+            },
+          },
         );
 
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantId ? { ...m, streaming: false } : m,
+            m.id === assistantId
+              ? { ...m, streaming: false, steps: collectedSteps }
+              : m,
           ),
         );
       } catch (err) {
@@ -93,17 +132,17 @@ export default function TutorChat() {
         setIsLoading(false);
       }
     },
-    [input, isLoading, mode],
+    [input, isLoading, mode, characterId],
   );
 
   return (
     <div className="flex h-[min(720px,calc(100vh-8rem))] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-indigo-500/20 bg-white/90 shadow-xl shadow-indigo-500/10 backdrop-blur dark:bg-zinc-900/90">
       <header className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          AI Tutor Chat
+          Learning Agent
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Ask a question and get a streamed response in real time.
+          Calculator · code review · search — powered by your custom fal.ai agent.
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -124,6 +163,26 @@ export default function TutorChat() {
             </button>
           ))}
         </div>
+
+        {characters.length > 0 && (
+          <label className="mt-3 block text-xs text-zinc-500 dark:text-zinc-400">
+            Lesson character
+            <select
+              value={characterId}
+              onChange={(e) => setCharacterId(e.target.value)}
+              disabled={isLoading}
+              className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            >
+              <option value="">Default tutor</option>
+              {characters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.visibility === "class" ? " (class)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
@@ -180,6 +239,20 @@ function MessageBubble({ message }: { message: Message }) {
             : "rounded-bl-md border border-zinc-200 bg-zinc-50 text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         } ${message.streaming ? "chat-bubble-streaming" : ""}`}
       >
+        {message.steps && message.steps.length > 0 && (
+          <ul className="mb-2 space-y-1 border-b border-zinc-200 pb-2 text-xs text-zinc-500 dark:border-zinc-600">
+            {message.steps.map((step, i) => (
+              <li key={i}>
+                {step.step_type === "tool" ? (
+                  <span>
+                    Used {toolLabel(step)}: {(step.output ?? "").slice(0, 120)}
+                    {(step.output?.length ?? 0) > 120 ? "…" : ""}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
         <p className="whitespace-pre-wrap break-words">
           {message.content}
           {message.streaming && (

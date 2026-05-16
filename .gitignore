@@ -28,6 +28,7 @@ debug-*.log
 # Python (backend)
 backend/venv/
 backend/.venv/
+backend/data/lessons/
 **/__pycache__/
 **/*.py[cod]
 *$py.class

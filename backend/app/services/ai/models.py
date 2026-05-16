@@ -24,6 +24,45 @@ class TutorResult(BaseModel):
     model: str
     mode: str = "standard"
     context_used: bool = False
+    steps: list[dict] = Field(default_factory=list)
+
+
+class AgentStepModel(BaseModel):
+    step_type: str
+    tool_name: str | None = None
+    input: dict | None = None
+    output: str | None = None
+
+
+class AgentChatResult(BaseModel):
+    answer: str
+    message: str
+    model: str
+    mode: str = "standard"
+    steps: list[AgentStepModel] = Field(default_factory=list)
+    character_id: str | None = None
+    context_used: bool = False
+
+
+class LessonScene(BaseModel):
+    title: str
+    narration: str
+    visual_prompt: str
+    on_screen_text: str = ""
+    image_url: str | None = None
+    audio_url: str | None = None
+    video_url: str | None = None
+
+
+class LessonVideoResult(BaseModel):
+    job_id: str
+    status: str
+    progress: int = 0
+    title: str = ""
+    phase: str | None = None
+    scenes: list[LessonScene] = Field(default_factory=list)
+    playlist_url: str | None = None
+    error: str | None = None
 
 
 class PresentationSlide(BaseModel):

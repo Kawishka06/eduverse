@@ -6,15 +6,23 @@ export type TutorMode = "standard" | "simple" | "meme";
 
 type TutorRequestBody = {
   question: string;
-  context?: string;
   mode: TutorMode;
+  character_id?: string | null;
 };
 
-type TutorBackendResponse = {
+type AgentStep = {
+  step_type: string;
+  tool_name?: string | null;
+  input?: Record<string, unknown> | null;
+  output?: string | null;
+};
+
+type AgentBackendResponse = {
   answer: string;
-  question: string;
+  message: string;
   model: string;
   mode: string;
+  steps: AgentStep[];
 };
 
 function sleep(ms: number) {
@@ -22,6 +30,7 @@ function sleep(ms: number) {
 }
 
 export async function POST(request: Request) {
+<<<<<<< HEAD
   const supabase = await createClient();
   const {
     data: { user },
@@ -35,6 +44,13 @@ export async function POST(request: Request) {
     data: { session },
   } = await supabase.auth.getSession();
 
+=======
+  const auth = request.headers.get("authorization");
+  if (!auth) {
+    return Response.json({ detail: "Sign in to use the AI tutor." }, { status: 401 });
+  }
+
+>>>>>>> 140e298 (Save local progress)
   let body: TutorRequestBody;
   try {
     body = await request.json();
@@ -46,16 +62,25 @@ export async function POST(request: Request) {
     return Response.json({ detail: "Question is required" }, { status: 400 });
   }
 
+<<<<<<< HEAD
   const backendRes = await fetch(`${BACKEND_URL}/ai/tutor`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${session?.access_token ?? ""}`,
+=======
+  const backendRes = await fetch(`${BACKEND_URL}/ai/agent/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: auth,
+>>>>>>> 140e298 (Save local progress)
     },
     body: JSON.stringify({
-      question: body.question.trim(),
-      context: body.context?.trim() || null,
+      message: body.question.trim(),
       mode: body.mode ?? "standard",
+      character_id: body.character_id ?? null,
+      material_ids: [],
     }),
   });
 
@@ -67,13 +92,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const data = (await backendRes.json()) as TutorBackendResponse;
+  const data = (await backendRes.json()) as AgentBackendResponse;
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
-      const tokens = data.answer.split(/(\s+)/);
+      for (const step of data.steps ?? []) {
+        controller.enqueue(
+          encoder.encode(`${JSON.stringify({ type: "step", step })}\n`),
+        );
+        await sleep(40);
+      }
 
+      const tokens = data.answer.split(/(\s+)/);
       for (const token of tokens) {
         controller.enqueue(
           encoder.encode(`${JSON.stringify({ type: "delta", content: token })}\n`),
@@ -83,7 +114,12 @@ export async function POST(request: Request) {
 
       controller.enqueue(
         encoder.encode(
-          `${JSON.stringify({ type: "done", mode: data.mode, model: data.model })}\n`,
+          `${JSON.stringify({
+            type: "done",
+            mode: data.mode,
+            model: data.model,
+            steps: data.steps,
+          })}\n`,
         ),
       );
       controller.close();

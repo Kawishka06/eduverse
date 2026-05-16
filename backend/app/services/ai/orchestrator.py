@@ -22,7 +22,11 @@ from app.services.ai.helpers.meme_captions import (
 )
 from app.services.ai.helpers.presentation_images import attach_slide_images
 from app.services.ai.helpers.presentations import generate_presentation_slides
+from app.services.ai.pipelines.lesson_video import run_lesson_video_job
+from app.services.ai.pipelines.lesson_video_jobs import LessonVideoJobRepository
 from app.services.ai.models import (
+    LessonScene,
+    LessonVideoResult,
     MemeResult,
     PresentationResult,
     PresentationSlide,
@@ -177,6 +181,128 @@ class AIOrchestrator:
             slides=slides,
             model=f"{self.settings.fal_llm_model}+{image_model}",
             source=data.get("source", "llm"),
+        )
+
+    async def design_character_bible(
+        self,
+        *,
+        name: str,
+        personality: str,
+        teaching_style: str,
+        visual_description: str,
+        voice_style: str,
+    ) -> str:
+        """Expand a student/teacher brief into a consistent character bible."""
+        if self.settings.fal_mock_mode or not self.settings.fal_key:
+            return (
+                f"{name} is a {personality or 'encouraging'} tutor. "
+                f"Appearance: {visual_description}. "
+                f"Teaching style: {teaching_style or 'clear and patient'}. "
+                f"Voice: {voice_style}."
+            )
+
+        from app.services.ai.helpers.llm import ask_llm
+
+        prompt = (
+            f"Name: {name}\nPersonality: {personality}\n"
+            f"Teaching style: {teaching_style}\nVisual: {visual_description}\n"
+            f"Voice: {voice_style}\n\n"
+            "Write a 150-word character bible for an educational mascot. "
+            "Include appearance, outfit colors, age vibe, and how they teach."
+        )
+        return await ask_llm(
+            prompt,
+            None,
+            model=self.settings.fal_llm_model,
+            endpoint=self.settings.fal_llm_endpoint,
+            max_tokens=512,
+            timeout=self.settings.fal_request_timeout,
+            system_prompt="You create unique educational character bibles. Be vivid and specific.",
+        )
+
+    async def generate_character_reference(
+        self,
+        bible: str,
+        *,
+        owner_id: str,
+    ) -> tuple[str | None, list[str]]:
+        """Generate reference art for a custom character via fal."""
+        prompt = (
+            f"Original educational mascot character portrait, full design: {bible[:800]}. "
+            "Single character, expressive face, consistent outfit, studio lighting, "
+            "3:4 portrait, no text, no watermark, not a celebrity or copyrighted character."
+        )
+
+        if self.settings.fal_mock_mode or not self.settings.fal_key:
+            url = "https://placehold.co/512x640/png?text=Character"
+            return url, [url]
+
+        raw = await text_to_image(
+            prompt,
+            model=self.settings.fal_character_model,
+            image_size="portrait_4_3",
+            num_images=1,
+            timeout=self.settings.fal_request_timeout,
+        )
+        primary = extract_image_url(raw)
+        return primary, [primary] if primary else []
+
+    def create_lesson_video_job(
+        self,
+        user_id: str,
+        material_id: str,
+        character_id: str | None,
+    ) -> str:
+        row = LessonVideoJobRepository().create(
+            {
+                "user_id": user_id,
+                "material_id": material_id,
+                "character_id": character_id,
+                "status": "pending",
+                "progress": 0,
+            },
+        )
+        return str(row["id"])
+
+    async def process_lesson_video_job(
+        self,
+        job_id: str,
+        *,
+        material_text: str,
+        character_bible: str,
+        reference_image_url: str | None,
+        voice_style: str = "friendly",
+    ) -> None:
+        await run_lesson_video_job(
+            job_id,
+            material_text=material_text,
+            character_bible=character_bible,
+            reference_image_url=reference_image_url,
+            voice_style=voice_style,
+            settings=self.settings,
+        )
+
+    def get_lesson_video_job(self, job_id: str, user_id: str) -> LessonVideoResult:
+        row = LessonVideoJobRepository().get(job_id)
+        if not row or str(row["user_id"]) != user_id:
+            raise AIOrchestratorError("Job not found")
+
+        scenes_raw = row.get("scenes_json") or []
+        if isinstance(scenes_raw, str):
+            import json
+
+            scenes_raw = json.loads(scenes_raw)
+
+        scenes = [LessonScene.model_validate(s) for s in scenes_raw]
+        return LessonVideoResult(
+            job_id=str(row["id"]),
+            status=str(row["status"]),
+            progress=int(row.get("progress") or 0),
+            title=str(row.get("title") or ""),
+            phase=row.get("phase"),
+            scenes=scenes,
+            playlist_url=row.get("playlist_url"),
+            error=row.get("error_message"),
         )
 
     @staticmethod

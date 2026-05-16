@@ -15,6 +15,12 @@ const studentLinks: NavLink[] = [
   { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/meme", label: "Meme Studio", icon: "🎨" },
   { href: "/dashboard/tutor", label: "AI Tutor", icon: "🎓" },
+<<<<<<< HEAD
+=======
+  { href: "/dashboard/characters", label: "Characters", icon: "🦊" },
+  { href: "/dashboard/lesson-studio", label: "Lesson Studio", icon: "🎬" },
+  { href: "/dashboard/feed", label: "Community Feed", icon: "🌐" },
+>>>>>>> 140e298 (Save local progress)
   { href: "/dashboard/announcements", label: "Class Updates", icon: "📢" },
   { href: "/dashboard/library", label: "My Library", icon: "📚" },
   { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
@@ -26,6 +32,12 @@ const creatorLinks: NavLink[] = [
   { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/meme", label: "Meme Studio", icon: "🎨" },
   { href: "/dashboard/tutor", label: "AI Tutor", icon: "🎓" },
+<<<<<<< HEAD
+=======
+  { href: "/dashboard/characters", label: "Characters", icon: "🦊" },
+  { href: "/dashboard/lesson-studio", label: "Lesson Studio", icon: "🎬" },
+  { href: "/dashboard/feed", label: "Community Feed", icon: "🌐" },
+>>>>>>> 140e298 (Save local progress)
   { href: "/dashboard/library", label: "My Library", icon: "📚" },
   { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
 ];
@@ -36,7 +48,13 @@ const teacherLinks: NavLink[] = [
   { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/teacher/students", label: "Students", icon: "👥" },
   { href: "/dashboard/teacher/announcements", label: "Announcements", icon: "📢" },
+  { href: "/dashboard/characters", label: "Class Mascots", icon: "🦊" },
   { href: "/dashboard/tutor", label: "AI Tutor", icon: "🎓" },
+<<<<<<< HEAD
+=======
+  { href: "/dashboard/lesson-studio", label: "Lesson Studio", icon: "🎬" },
+  { href: "/dashboard/feed", label: "Community Feed", icon: "🌐" },
+>>>>>>> 140e298 (Save local progress)
   { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
 ];
 
@@ -85,6 +103,11 @@ export function mobileLinksForRole(role: AppRole): NavLink[] {
     { href: COMMUNITY_HOME, label: "Home", icon: "🏠" },
     { href: "/dashboard/meme", label: "Create", icon: "➕" },
     { href: "/dashboard/tutor", label: "Tutor", icon: "🎓" },
+<<<<<<< HEAD
     { href: "/dashboard/settings", label: "Profile", icon: "👤" },
+=======
+    { href: "/dashboard/lesson-studio", label: "Lessons", icon: "🎬" },
+    { href: "/dashboard/announcements", label: "Class", icon: "📢" },
+>>>>>>> 140e298 (Save local progress)
   ];
 }

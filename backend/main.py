@@ -9,13 +9,18 @@ from app.middleware.body_limit import BodyLimitMiddleware
 from app.services.ai.router import router as ai_router
 from app.services.auth.router import router as auth_router
 from app.services.content import router as content_router
+from app.services.content.materials_router import router as materials_router
+from app.services.characters import router as characters_router
 from app.services.admin import router as admin_router
 from app.services.dashboard import router as dashboard_router
 from app.services.social import router as social_router
 from app.services.teacher import router as teacher_router
 
 settings = get_settings()
+<<<<<<< HEAD
 settings.validate_production_secrets()
+=======
+>>>>>>> 140e298 (Save local progress)
 
 app = FastAPI(
     title="EduVerse AI",
@@ -26,7 +31,11 @@ app = FastAPI(
     openapi_url=None if settings.is_production else "/openapi.json",
 )
 
+<<<<<<< HEAD
 app.add_middleware(BodyLimitMiddleware)
+=======
+# JWT runs inside CORS so preflight OPTIONS always gets CORS headers.
+>>>>>>> 140e298 (Save local progress)
 app.add_middleware(JWTAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +48,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(ai_router)
 app.include_router(content_router)
+app.include_router(materials_router)
+app.include_router(characters_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(teacher_router)

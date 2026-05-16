@@ -14,10 +14,12 @@ EduVerse combines social learning, creator tools, and AI-assisted education—me
 | **Dashboard** | Role-aware workspace with stats, library, and quick actions |
 | **Roles** | Student, creator, and admin with role-based access |
 | **AI Meme Generation** | Text prompts → images via fal.ai |
-| **AI Tutor** | LLM-powered Q&A and learning assistance |
-| **Image-to-Video** | Turn static images into short videos |
+| **Learning Agent** | Custom ReAct agent with calculator, code review, and web search tools |
+| **Lesson Characters** | Student- and teacher-designed mascots with fal-generated reference art |
+| **Lesson Video Studio** | Upload study materials → scripted scenes → TTS + image-to-video clips |
+| **AI Tutor** | Chat UI powered by the learning agent (requires sign-in) |
+| **Image-to-Video** | Per-scene clips in the lesson pipeline |
 | **Social Feed** | Posts, likes, and comments |
-| **Recommendations** | Personalized content discovery |
 
 ---
 
@@ -43,9 +45,9 @@ EduVerse combines social learning, creator tools, and AI-assisted education—me
 ┌───────────────────────────▼─────────────────────────────────┐
 │                      FastAPI Backend                         │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────────────┐  │
-│  │  Auth   │ │ Content │ │ Social  │ │  AI Orchestrator │  │
-│  │ Service │ │ Service │ │ Service │ │  (fal.ai + LLM)  │  │
-│  └────┬────┘ └────┬────┘ └────┬────┘ └────────┬─────────┘  │
+│  │  Auth   │ │ Content │ │Characters│ │ Learning Agent   │  │
+│  │ Service │ │Materials│ │ Service  │ │ + Orchestrator   │  │
+│  └────┬────┘ └────┬────┘ └────┬─────┘ └────────┬─────────┘  │
 └───────┼───────────┼───────────┼───────────────┼────────────┘
         │           │           │               │
         │           │           │               │
@@ -64,9 +66,12 @@ EduVerse combines social learning, creator tools, and AI-assisted education—me
 - **Auth** — Supabase Auth sessions, profile sync, role enforcement
 - **Content** — Posts, media metadata, creator workflows
 - **Social** — Feed, likes, comments, engagement
-- **AI Orchestrator** — Single entry point for meme generation, tutor chat, image-to-video, and embedding/indexing for recommendations
+- **AI Orchestrator** — Meme generation, lesson video pipeline, character art, vision, TTS, and image-to-video
+- **Learning Agent** — Tool-using tutor loop (calculator, code review, search) via fal `any-llm`
+- **Characters** — Custom lesson mascots with generated reference sheets
+- **Content / Materials** — Student uploads (PDF, text, images) with text extraction for lessons
 
-The AI Orchestrator centralizes all external AI calls (fal.ai, LLM providers) so services stay decoupled and rate limits, retries, and logging can be handled in one place.
+The AI Orchestrator centralizes fal.ai calls; the Learning Agent adds pedagogy, tools, and character persona on top.
 
 ---
 
@@ -74,8 +79,9 @@ The AI Orchestrator centralizes all external AI calls (fal.ai, LLM providers) so
 
 | Role | Capabilities |
 |------|----------------|
-| **Student** | Browse feed, interact (like/comment), use AI tutor, view recommendations |
-| **Creator** | Publish content, generate memes and videos, manage own posts |
+| **Student** | Learning agent, characters, lesson studio, feed, library |
+| **Teacher** | Publish class characters, announcements, lesson studio |
+| **Creator** | Slide studio, memes, lesson studio, library |
 | **Admin** | User moderation, platform configuration, analytics |
 
 ---
@@ -121,7 +127,13 @@ SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_JWT_SECRET=your-jwt-secret
 FAL_KEY=your-fal-key
+FAL_CHARACTER_MODEL=fal-ai/flux/schnell
+AGENT_MAX_TURNS=6
+SEARCH_PROVIDER=tavily
+TAVILY_API_KEY=your-tavily-key
 ```
+
+See `backend/.env.example` for all AI and search variables.
 
 The backend uses the **Supabase Python client** (service role) for all database access — no local PostgreSQL, SQLite, or `DATABASE_URL` required.
 
@@ -137,9 +149,25 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. Enable **Email** auth under Authentication → Providers
-3. Run **`supabase/migrations/001_initial_schema.sql`** in the Supabase **SQL Editor** (creates `profiles` and `posts` tables). If you see `Could not find the table public.profiles`, this step was skipped.
-4. Copy **Project URL**, **anon key**, and **JWT secret** (Settings → API) into your `.env` files
-5. Set `SUPABASE_JWT_SECRET` in the backend `.env` so the API accepts Supabase session tokens
+3. Run base schema: paste **`supabase/COMPLETE_SETUP.sql`** in the SQL Editor (includes lesson tables + storage), **or** run migrations `001`–`006` then lesson migrations below.
+4. **Lesson features (required for Characters + Lesson Studio):** In SQL Editor, paste and run **`supabase/RUN_LESSON_MIGRATIONS.sql`** (combines `007` + `008`). Safe to re-run.
+5. Verify: open `http://localhost:8000/health/db` — `lessonFeaturesReady` should be `true`.
+6. Copy **Project URL**, **anon key**, and **JWT secret** (Settings → API) into your `.env` files
+7. Set `SUPABASE_JWT_SECRET` in the backend `.env` so the API accepts Supabase session tokens
+
+**Optional CLI migrate** (if you add the database URI to `backend/.env`):
+
+```env
+SUPABASE_DB_URL=postgresql://postgres.[ref]:[PASSWORD]@...pooler.supabase.com:6543/postgres
+```
+
+```bash
+cd backend
+pip install psycopg2-binary python-dotenv
+python scripts/apply_lesson_migrations.py
+```
+
+Get the URI from Supabase Dashboard → **Settings** → **Database** → **Connection string** (URI).
 
 ---
 
@@ -171,10 +199,11 @@ Copy `frontend/.env.example` and `backend/.env.example` to `.env.local` / `.env`
 
 ## AI Flows
 
-1. **Meme generation** — Client → Content/Social API → AI Orchestrator → fal.ai text-to-image → stored URL in Supabase
-2. **AI tutor** — Client → AI Orchestrator → LLM → streamed or structured response
-3. **Image-to-video** — Client → AI Orchestrator → fal.ai image-to-video → media attached to post
-4. **Recommendations** — Embeddings via Orchestrator → Pinecone similarity → ranked feed items
+1. **Meme generation** — Client → `/ai/meme` → Orchestrator → fal text-to-image → library post
+2. **Learning agent** — Client → `/ai/agent/chat` → ReAct loop + tools → fal `any-llm`
+3. **Character design** — Client → `/characters` → LLM bible + fal reference image → Supabase
+4. **Lesson video** — Upload → `/content/materials` → `/ai/lesson-video` → script → scene images → TTS → image-to-video per scene
+5. **AI tutor (legacy path)** — `/ai/tutor` wraps the learning agent for the chat UI
 
 ---
 
