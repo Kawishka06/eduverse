@@ -9,6 +9,15 @@ from fastapi import HTTPException, status
 from app.config import get_settings
 
 
+def _host_matches_allowlist(host: str, allowed: frozenset[str]) -> bool:
+    if not host:
+        return False
+    for entry in allowed:
+        if host == entry or host.endswith(f".{entry}"):
+            return True
+    return False
+
+
 def _allowed_hosts() -> frozenset[str]:
     settings = get_settings()
     hosts = {h.strip().lower() for h in settings.allowed_url_hosts if h.strip()}
@@ -37,7 +46,23 @@ def assert_https_url_allowed(url: str | None, *, field: str = "url") -> None:
         )
     host = (parsed.hostname or "").lower()
     allowed = _allowed_hosts()
-    if not host or host not in allowed:
+    host_ok = _host_matches_allowlist(host, allowed)
+    # #region agent log
+    from app.debug_log import debug_log
+
+    debug_log(
+        "url_allowlist.py:assert_https_url_allowed",
+        "URL allowlist check",
+        {
+            "field": field,
+            "host": host,
+            "hostOk": host_ok,
+            "allowedSample": sorted(allowed)[:8],
+        },
+        hypothesis_id="H1",
+    )
+    # #endregion
+    if not host or not host_ok:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -50,8 +75,8 @@ def assert_https_url_allowed(url: str | None, *, field: str = "url") -> None:
 def is_https_url_allowed(url: str | None) -> bool:
     if not url or not str(url).strip():
         return False
-    try:
-        assert_https_url_allowed(url)
-        return True
-    except HTTPException:
+    parsed = urlparse(str(url).strip())
+    if parsed.scheme != "https":
         return False
+    host = (parsed.hostname or "").lower()
+    return _host_matches_allowlist(host, _allowed_hosts())

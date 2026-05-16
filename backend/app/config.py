@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""
     supabase_jwt_secret: str = ""
+    # Optional: Supabase Dashboard → Database → password (enables startup DDL for contact table)
+    supabase_db_password: str = ""
 
     # fal.ai / AI Orchestrator
     fal_key: str = ""
@@ -72,7 +74,7 @@ class Settings(BaseSettings):
 
     @property
     def public_paths(self) -> tuple[str, ...]:
-        base = ("/health", "/ws/feed")
+        base = ("/health", "/ws/feed", "/contact")
         if not self.is_production:
             return (
                 *base,

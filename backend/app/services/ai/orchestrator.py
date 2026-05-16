@@ -19,6 +19,7 @@ from app.services.ai.helpers.meme_captions import (
     build_meme_post_caption,
     generate_feed_caption,
     generate_meme_captions,
+    parse_meme_user_prompt,
 )
 from app.services.ai.helpers.presentation_images import attach_slide_images
 from app.services.ai.helpers.presentations import generate_presentation_slides
@@ -48,8 +49,11 @@ class AIOrchestrator:
         if not text.strip():
             raise AIOrchestratorError("Meme prompt cannot be empty")
 
-        captions = await generate_meme_captions(text, self.settings)
-        image_prompt = self._build_meme_image_prompt(text)
+        parsed = parse_meme_user_prompt(text)
+        captions = await generate_meme_captions(
+            text, self.settings, parsed=parsed
+        )
+        image_prompt = self._build_meme_image_prompt(parsed.scene_description)
         raw = await text_to_image(
             image_prompt,
             model=self.settings.fal_meme_model,
@@ -67,6 +71,25 @@ class AIOrchestrator:
             feed_caption, captions["top_text"], captions["bottom_text"]
         )
 
+        # #region agent log
+        from app.debug_log import debug_log
+        from urllib.parse import urlparse
+
+        debug_log(
+            "orchestrator.py:generate_meme",
+            "meme generated",
+            {
+                "imageHost": urlparse(image_url).hostname,
+                "topLen": len(captions["top_text"]),
+                "bottomLen": len(captions["bottom_text"]),
+                "feedLen": len(feed_caption),
+                "topPreview": captions["top_text"][:60],
+                "feedPreview": feed_caption[:60],
+                "explicitTop": bool(parsed.explicit_top),
+            },
+            hypothesis_id="H4",
+        )
+        # #endregion
         return MemeResult(
             image_url=image_url,
             prompt=image_prompt,
@@ -180,15 +203,16 @@ class AIOrchestrator:
         )
 
     @staticmethod
-    def _build_meme_image_prompt(text: str) -> str:
+    def _build_meme_image_prompt(scene: str) -> str:
         """Scene-only prompt — captions are rendered in the UI, not in the image."""
+        scene = scene.strip() or "students studying in a classroom"
         return (
-            f"Humorous photorealistic scene about: {text.strip()}. "
-            "Single clear subject, expressive face or situation, meme-worthy composition, "
-            "soft office or desk lighting, 4:3 aspect ratio, clean background. "
+            f"Photorealistic humorous educational scene: {scene}. "
+            "Two students at a desk or in a classroom, expressive faces, "
+            "meme-worthy composition, warm lighting, square framing. "
             "CRITICAL: absolutely no text, no words, no letters, no numbers, no writing, "
             "no captions, no subtitles, no signs, no labels, no watermarks, no logos, "
-            "no typography, no speech bubbles, no UI elements anywhere in the image."
+            "no typography, no speech bubbles, no banners, no UI anywhere in the image."
         )
 
 

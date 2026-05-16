@@ -62,6 +62,14 @@ export default async function AdminDashboardPage() {
                 Moderate community posts
               </Link>
             </li>
+            <li>
+              <Link
+                href="/dashboard/admin/contact"
+                className="text-violet-600 hover:underline"
+              >
+                Contact form inbox
+              </Link>
+            </li>
           </ul>
         </div>
       </section>

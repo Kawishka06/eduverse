@@ -72,8 +72,48 @@ def create_post(
     user: UserPublic = Depends(require_active_user),
     content: ContentService = Depends(get_content_service),
 ) -> PostPublic:
-    enforce_clean_text(str(user.id), payload.caption)
-    return content.create_post(str(user.id), payload)
+    # #region agent log
+    from app.debug_log import debug_log
+    from urllib.parse import urlparse
+
+    debug_log(
+        "content/router.py:create_post",
+        "create_post entry",
+        {
+            "contentHost": urlparse(str(payload.content_url)).hostname,
+            "captionLen": len(payload.caption or ""),
+            "captionKind": (payload.caption or "")[:40],
+        },
+        hypothesis_id="H2",
+    )
+    # #endregion
+    try:
+        enforce_clean_text(str(user.id), payload.caption)
+    except Exception as exc:
+        # #region agent log
+        debug_log(
+            "content/router.py:create_post",
+            "moderation blocked caption",
+            {"detailType": type(getattr(exc, "detail", None)).__name__},
+            hypothesis_id="H2",
+        )
+        # #endregion
+        raise
+    try:
+        return content.create_post(str(user.id), payload)
+    except Exception as exc:
+        # #region agent log
+        debug_log(
+            "content/router.py:create_post",
+            "create_post failed",
+            {
+                "status": getattr(exc, "status_code", None),
+                "detail": str(getattr(exc, "detail", exc))[:200],
+            },
+            hypothesis_id="H1",
+        )
+        # #endregion
+        raise
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)

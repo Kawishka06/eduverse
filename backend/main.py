@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,9 +15,19 @@ from app.services.admin import router as admin_router
 from app.services.dashboard import router as dashboard_router
 from app.services.social import router as social_router
 from app.services.teacher import router as teacher_router
+from app.services.contact.router import router as contact_router
 
 settings = get_settings()
 settings.validate_production_secrets()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    from app.db.schema_bootstrap import ensure_contact_submissions
+
+    ensure_contact_submissions()
+    yield
+
 
 app = FastAPI(
     title="EduVerse AI",
@@ -24,6 +36,7 @@ app = FastAPI(
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",
     openapi_url=None if settings.is_production else "/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(BodyLimitMiddleware)
@@ -43,6 +56,7 @@ app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(teacher_router)
 app.include_router(social_router)
+app.include_router(contact_router)
 
 
 @app.exception_handler(Exception)

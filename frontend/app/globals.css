@@ -119,6 +119,20 @@ body {
   bottom: 0.5rem;
 }
 
+.meme-caption-medium {
+  font-size: clamp(0.85rem, 3.2vw, 1.35rem);
+  line-height: 1.15;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.meme-caption-compact {
+  font-size: clamp(0.7rem, 2.6vw, 1.05rem);
+  line-height: 1.12;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+}
+
 @keyframes chat-bubble-in {
   from {
     opacity: 0;

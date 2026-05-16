@@ -46,6 +46,7 @@ const adminLinks: NavLink[] = [
   { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/admin/users", label: "Users", icon: "👤" },
   { href: "/dashboard/admin/moderation", label: "Moderation", icon: "🧹" },
+  { href: "/dashboard/admin/contact", label: "Contact inbox", icon: "✉️" },
   { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
 ];
 

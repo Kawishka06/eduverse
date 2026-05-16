@@ -202,7 +202,35 @@ export async function savePost(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? "Failed to save post");
+    // #region agent log
+    fetch("http://127.0.0.1:7429/ingest/2c1bf601-f112-4a6f-a1ea-4baa2366ae29", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "834be7",
+      },
+      body: JSON.stringify({
+        sessionId: "834be7",
+        location: "api.ts:savePost",
+        message: "savePost failed",
+        data: {
+          status: res.status,
+          detailType: typeof body.detail,
+          detail: body.detail,
+          contentHost: (() => {
+            try {
+              return new URL(contentUrl).hostname;
+            } catch {
+              return "invalid";
+            }
+          })(),
+        },
+        timestamp: Date.now(),
+        hypothesisId: "H3",
+      }),
+    }).catch(() => {});
+    // #endregion
+    throw new Error(parseApiDetail(body.detail) || "Failed to save post");
   }
 
   return res.json();
@@ -464,4 +492,66 @@ export async function deleteMyAccount(): Promise<void> {
     const body = await res.json().catch(() => ({}));
     throwApiError(body, "Failed to delete account");
   }
+}
+
+export type ContactSubmissionRow = {
+  id: string;
+  user_id: string | null;
+  name: string;
+  email: string;
+  subject: string;
+  category: string;
+  message: string;
+  status: string;
+  created_at: string;
+};
+
+export async function submitContactForm(payload: {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  category: string;
+}): Promise<{ id: string; message: string }> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const token = await getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const res = await fetch(`${API_BASE}/contact`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(parseApiDetail(body.detail) || "Failed to send message");
+  }
+  return res.json();
+}
+
+export async function fetchContactSubmissions(
+  status?: string,
+): Promise<ContactSubmissionRow[]> {
+  const headers = await authHeaders();
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  const res = await fetch(`${API_BASE}/admin/contact-submissions${qs}`, {
+    headers,
+  });
+  if (!res.ok) throw new Error("Failed to load contact submissions");
+  return res.json();
+}
+
+export async function updateContactSubmissionStatus(
+  submissionId: string,
+  status: "new" | "read" | "resolved",
+): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(
+    `${API_BASE}/admin/contact-submissions/${submissionId}?status=${status}`,
+    { method: "PATCH", headers },
+  );
+  if (!res.ok) throw new Error("Failed to update submission");
 }

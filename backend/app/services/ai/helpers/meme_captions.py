@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import random
 import re
-from typing import Any
+from dataclasses import dataclass
 
 from app.config import Settings, get_settings
 from app.services.ai.helpers.llm import ask_llm
@@ -16,18 +16,109 @@ Return ONLY valid JSON with this exact shape:
 
 Rules:
 - ALL CAPS
-- Max 6 words per line
+- Max 12 words per line (short and readable on a meme)
 - Funny, relatable to the topic
-- Proper English spelling and grammar
+- Proper English spelling; keep apostrophes in contractions (DON'T, WE'RE)
 - No quotes inside the text
 - No explanation outside the JSON"""
 
+_TOP_LINE_RE = re.compile(r"^top\s*text\s*:\s*(.+)$", re.IGNORECASE)
+_BOTTOM_LINE_RE = re.compile(r"^bottom\s*text\s*:\s*(.+)$", re.IGNORECASE)
+_INSTRUCTION_LINE_RE = re.compile(
+    r"^(create|make|add|use|show|turn|write|return|rules?|topic)\b",
+    re.IGNORECASE,
+)
 
-def _normalize_caption(line: str, max_words: int = 8) -> str:
+
+@dataclass
+class ParsedMemePrompt:
+    scene_description: str
+    explicit_top: str | None = None
+    explicit_bottom: str | None = None
+
+
+def _strip_quotes(value: str) -> str:
+    return value.strip().strip("\"'“”").strip()
+
+
+def parse_meme_user_prompt(text: str) -> ParsedMemePrompt:
+    """Split user prompt into scene (for image) and optional overlay lines."""
+    explicit_top: str | None = None
+    explicit_bottom: str | None = None
+    scene_lines: list[str] = []
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        top_m = _TOP_LINE_RE.match(stripped)
+        if top_m:
+            explicit_top = _strip_quotes(top_m.group(1))
+            continue
+        bottom_m = _BOTTOM_LINE_RE.match(stripped)
+        if bottom_m:
+            explicit_bottom = _strip_quotes(bottom_m.group(1))
+            continue
+        scene_lines.append(stripped)
+
+    scene = _extract_scene_description("\n".join(scene_lines))
+    return ParsedMemePrompt(
+        scene_description=scene,
+        explicit_top=explicit_top,
+        explicit_bottom=explicit_bottom,
+    )
+
+
+def _extract_scene_description(text: str) -> str:
+    t = re.sub(r"\s+", " ", text).strip()
+    if not t:
+        return "funny relatable student study moment"
+
+    about = re.search(
+        r"(?:about|showing|depicting)\s+(.+?)(?:\.|make it|use a|add short|$)",
+        t,
+        re.IGNORECASE,
+    )
+    if about:
+        return about.group(1).strip()[:220]
+
+    setting = re.search(
+        r"(classroom|study\s+table|library|dorm|lecture\s+hall|exam\s+prep)[^.]{0,120}",
+        t,
+        re.IGNORECASE,
+    )
+    if setting:
+        return setting.group(0).strip()[:220]
+
+    parts: list[str] = []
+    for sentence in re.split(r"[.!?]\s+", t):
+        s = sentence.strip()
+        if not s or len(s) < 12:
+            continue
+        if _INSTRUCTION_LINE_RE.match(s):
+            continue
+        if re.search(r"\b(top|bottom)\s*text\b", s, re.IGNORECASE):
+            continue
+        parts.append(s)
+        if len(" ".join(parts)) > 180:
+            break
+
+    if parts:
+        return " ".join(parts)[:220]
+
+    return t[:220]
+
+
+def _normalize_caption(line: str, max_words: int = 12) -> str:
     cleaned = re.sub(r"\s+", " ", line.strip().upper())
-    cleaned = re.sub(r"[^A-Z0-9\s'!?.,-]", "", cleaned)
+    cleaned = re.sub(r"[^A-Z0-9\s'!?.,:;\-]", "", cleaned)
     words = cleaned.split()[:max_words]
     return " ".join(words) if words else "MEME TIME"
+
+
+def _format_user_overlay_line(line: str) -> str:
+    """Preserve user-provided meme lines with readable length."""
+    return _normalize_caption(line, max_words=14)
 
 
 def free_meme_captions(topic: str) -> dict[str, str]:
@@ -54,10 +145,15 @@ def free_meme_captions(topic: str) -> dict[str, str]:
             "top_text": "undefined IS NOT A FUNCTION",
             "bottom_text": "I AM NOT A FUNCTION",
         }
+    if ("last minute" in t or "night before" in t) and ("exam" in t or "test" in t):
+        return {
+            "top_text": "ME OPENING THE TEXTBOOK ONE NIGHT BEFORE EXAM",
+            "bottom_text": "BRAIN: WE DON'T DO THAT HERE",
+        }
     if "exam" in t or "test" in t or "study" in t:
         return {
-            "top_text": "STUDYING FOR 5 MINUTES",
-            "bottom_text": "CONFIDENCE LEVEL: 100 PERCENT",
+            "top_text": "WHEN THE EXAM IS TOMORROW",
+            "bottom_text": "AND YOU JUST STARTED STUDYING",
         }
     if "bug" in t or "debug" in t:
         return {
@@ -96,30 +192,41 @@ def _parse_caption_json(raw: str) -> dict[str, str] | None:
 async def generate_meme_captions(
     topic: str,
     settings: Settings | None = None,
+    *,
+    parsed: ParsedMemePrompt | None = None,
 ) -> dict[str, str]:
     settings = settings or get_settings()
     topic = topic.strip()
+    prompt_parts = parsed or parse_meme_user_prompt(topic)
+
+    if prompt_parts.explicit_top and prompt_parts.explicit_bottom:
+        return {
+            "top_text": _format_user_overlay_line(prompt_parts.explicit_top),
+            "bottom_text": _format_user_overlay_line(prompt_parts.explicit_bottom),
+        }
+
+    scene = prompt_parts.scene_description or topic
 
     if settings.fal_mock_mode or not settings.fal_key:
-        return free_meme_captions(topic)
+        return free_meme_captions(scene)
 
     try:
         raw = await ask_llm(
-            f"Topic for the meme: {topic}",
+            f"Scene / topic for the meme (write captions only, no image): {scene}",
             None,
             model=settings.fal_llm_model,
             endpoint=settings.fal_llm_endpoint,
-            max_tokens=120,
+            max_tokens=160,
             timeout=settings.fal_request_timeout,
             system_prompt=MEME_CAPTION_SYSTEM,
         )
-        parsed = _parse_caption_json(raw)
-        if parsed:
-            return parsed
+        caption_json = _parse_caption_json(raw)
+        if caption_json:
+            return caption_json
     except Exception:
         pass
 
-    return free_meme_captions(topic)
+    return free_meme_captions(scene)
 
 
 FEED_CAPTION_TEMPLATES = [

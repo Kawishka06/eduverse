@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { buildContentSecurityPolicy } from "@/lib/content-security-policy";
 import { updateSession } from "@/lib/supabase/middleware";
 
 function applySecurityHeaders(response: NextResponse) {
@@ -9,18 +10,7 @@ function applySecurityHeaders(response: NextResponse) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()",
   );
-  response.headers.set(
-    "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' https: data: blob:",
-      "connect-src 'self' https: wss:",
-      "font-src 'self' data:",
-      "frame-ancestors 'none'",
-    ].join("; "),
-  );
+  response.headers.set("Content-Security-Policy", buildContentSecurityPolicy());
   return response;
 }
 
