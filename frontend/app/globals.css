@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@keyframes meme-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes meme-shimmer {
+  0% {
+    opacity: 0.35;
+    transform: scaleX(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scaleX(0.6);
+  }
+}
+
+@keyframes meme-loading-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.meme-result {
+  animation: meme-fade-in 0.55s ease-out forwards;
+}
+
+.meme-loading {
+  animation: meme-loading-pulse 1.5s ease-in-out infinite;
+}
+
+.meme-shimmer {
+  display: block;
+  transform-origin: left;
+  background: linear-gradient(90deg, #8b5cf6, #6366f1, #8b5cf6);
+  animation: meme-shimmer 1.2s ease-in-out infinite;
+}
+
+.meme-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@keyframes chat-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chat-cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.chat-bubble {
+  animation: chat-bubble-in 0.3s ease-out forwards;
+}
+
+.chat-bubble-streaming {
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.15);
+}
+
+.chat-cursor {
+  animation: chat-cursor-blink 0.9s step-end infinite;
+}
