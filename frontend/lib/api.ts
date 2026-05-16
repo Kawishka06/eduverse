@@ -96,6 +96,7 @@ export type PresentationSlide = {
   title: string;
   bullets: string[];
   speaker_notes: string;
+  image_url?: string | null;
 };
 
 export type PresentationResponse = {
@@ -108,7 +109,11 @@ export type PresentationResponse = {
 
 export async function generatePresentation(
   notes: string,
-  options?: { title?: string; fontStyle?: string },
+  options?: {
+    title?: string;
+    fontStyle?: string;
+    includeImages?: boolean;
+  },
 ): Promise<PresentationResponse> {
   const headers = await authHeaders();
   const res = await fetch(`${API_BASE}/ai/presentation`, {
@@ -118,6 +123,7 @@ export async function generatePresentation(
       notes,
       title: options?.title ?? null,
       font_style: options?.fontStyle ?? "modern-sans",
+      include_images: options?.includeImages ?? true,
     }),
   });
 
@@ -126,9 +132,7 @@ export async function generatePresentation(
     const detail =
       typeof body.detail === "string"
         ? body.detail
-        : res.status === 403
-          ? "Slide Studio is for Creator accounts. Register as a creator or ask an admin to upgrade your role."
-          : "Failed to generate presentation.";
+        : "Failed to generate presentation.";
     throw new Error(detail);
   }
 

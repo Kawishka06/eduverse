@@ -28,6 +28,7 @@ class PresentationSlide(BaseModel):
     title: str
     bullets: list[str] = Field(default_factory=list)
     speaker_notes: str = ""
+    image_url: str | None = None
 
 
 class PresentationResult(BaseModel):

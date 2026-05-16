@@ -57,16 +57,14 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <QuickLink
+          href="/dashboard/slides"
+          title="Slide Studio"
+          desc="Notes → slides with images"
+        />
         <QuickLink href="/dashboard/meme" title="Meme Studio" desc="Generate a study meme" />
         <QuickLink href="/dashboard/tutor" title="AI Tutor" desc="Ask anything" />
         <QuickLink href="/dashboard/feed" title="Feed" desc="Browse community" />
-        {dashboard?.user.role === "creator" && (
-          <QuickLink
-            href="/dashboard/slides"
-            title="Slide Studio"
-            desc="Notes → slides with pro fonts"
-          />
-        )}
       </section>
 
       <section>

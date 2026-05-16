@@ -8,6 +8,7 @@ export type NavLink = {
 
 const studentLinks: NavLink[] = [
   { href: "/dashboard", label: "Overview", icon: "📊" },
+  { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/meme", label: "Meme Studio", icon: "🎨" },
   { href: "/dashboard/tutor", label: "AI Tutor", icon: "🎓" },
   { href: "/dashboard/feed", label: "Community Feed", icon: "🌐" },
@@ -28,6 +29,7 @@ const creatorLinks: NavLink[] = [
 
 const teacherLinks: NavLink[] = [
   { href: "/dashboard/teacher", label: "Teacher Home", icon: "🏫" },
+  { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/teacher/students", label: "Students", icon: "👥" },
   { href: "/dashboard/teacher/announcements", label: "Announcements", icon: "📢" },
   { href: "/dashboard/tutor", label: "AI Tutor", icon: "🎓" },
@@ -37,6 +39,7 @@ const teacherLinks: NavLink[] = [
 
 const adminLinks: NavLink[] = [
   { href: "/dashboard/admin", label: "Admin Home", icon: "🛡️" },
+  { href: "/dashboard/slides", label: "Slide Studio", icon: "📽️" },
   { href: "/dashboard/admin/users", label: "Users", icon: "👤" },
   { href: "/dashboard/admin/moderation", label: "Moderation", icon: "🧹" },
   { href: "/dashboard/feed", label: "Community Feed", icon: "🌐" },
@@ -62,6 +65,7 @@ export function mobileLinksForRole(role: AppRole): NavLink[] {
   if (role === "teacher") {
     return [
       { href: "/dashboard/teacher", label: "Home", icon: "🏫" },
+      { href: "/dashboard/slides", label: "Slides", icon: "📽️" },
       { href: "/dashboard/teacher/students", label: "Students", icon: "👥" },
       { href: "/dashboard/teacher/announcements", label: "News", icon: "📢" },
       { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
@@ -77,8 +81,8 @@ export function mobileLinksForRole(role: AppRole): NavLink[] {
   }
   return [
     { href: "/dashboard", label: "Home", icon: "📊" },
+    { href: "/dashboard/slides", label: "Slides", icon: "📽️" },
     { href: "/dashboard/meme", label: "Meme", icon: "🎨" },
     { href: "/dashboard/tutor", label: "Tutor", icon: "🎓" },
-    { href: "/dashboard/announcements", label: "Class", icon: "📢" },
   ];
 }

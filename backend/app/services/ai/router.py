@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.core.dependencies import require_roles
-from app.models.enums import TutorMode, UserRole
+from app.core.dependencies import get_current_user_public
+from app.models.enums import TutorMode
 from app.models.user import UserPublic
 from app.services.ai.models import MemeResult, PresentationResult, TutorResult
 from app.services.ai.orchestrator import AIOrchestrator, get_ai_orchestrator
@@ -57,14 +57,13 @@ class PresentationGenerateRequest(BaseModel):
     notes: str = Field(..., min_length=1, max_length=12000)
     title: str | None = Field(default=None, max_length=200)
     font_style: str = Field(default="modern-sans", max_length=40)
+    include_images: bool = True
 
 
 @router.post("/presentation", response_model=PresentationResult)
 async def generate_presentation(
     payload: PresentationGenerateRequest,
-    _user: UserPublic = Depends(
-        require_roles(UserRole.CREATOR.value, UserRole.ADMIN.value),
-    ),
+    _user: UserPublic = Depends(get_current_user_public),
     orchestrator: AIOrchestrator = Depends(get_ai_orchestrator),
 ) -> PresentationResult:
     try:
@@ -72,6 +71,7 @@ async def generate_presentation(
             payload.notes,
             title=payload.title,
             font_style=payload.font_style,
+            include_images=payload.include_images,
         )
     except Exception as exc:
         raise HTTPException(
