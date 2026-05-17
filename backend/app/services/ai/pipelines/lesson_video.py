@@ -311,31 +311,42 @@ async def run_lesson_video_job(
             if settings.lesson_enable_video_clips and image_url and audio_url:
                 target = int(settings.lesson_scene_target_seconds)
                 _phase(f"Animating scene with AI motion (~{target}s lesson)…", 55)
-                try:
-                    video_args: dict[str, Any] = {}
-                    if "hailuo" in settings.fal_video_model:
-                        video_args["duration"] = "10"
-                    vid_raw = await asyncio.wait_for(
-                        image_to_video(
-                            image_url,
-                            model=settings.fal_video_model,
-                            prompt=motion_prompt,
-                            timeout=settings.lesson_video_timeout,
-                            **video_args,
-                        ),
-                        timeout=settings.lesson_video_timeout + 30,
-                    )
-                    silent_video = extract_video_url(vid_raw)
-                    video_mode = "animated"
+                anim_timeout = max(300.0, settings.lesson_video_timeout + 120.0)
+                video_args: dict[str, Any] = {}
+                if "hailuo" in settings.fal_video_model:
+                    video_args["duration"] = "6"
 
-                    if ffmpeg_available():
-                        _phase("Merging animated clip with character voice…", 85)
+                async def _animate() -> str:
+                    vid_raw = await image_to_video(
+                        image_url,
+                        model=settings.fal_video_model,
+                        prompt=motion_prompt[:500],
+                        timeout=anim_timeout - 15,
+                        **video_args,
+                    )
+                    return extract_video_url(vid_raw)
+
+                try:
+                    silent_video = await asyncio.wait_for(
+                        _animate(),
+                        timeout=anim_timeout,
+                    )
+                    video_mode = "animated"
+                    _phase("Merging animated clip with character voice…", 85)
+
+                    if settings.lesson_mux_voice_into_video and ffmpeg_available():
                         lesson_video_url = await build_lesson_video_with_voice(
                             job_id=job_id,
                             video_url=silent_video,
                             audio_url=audio_url,
                             settings=settings,
                         )
+                        if not lesson_video_url:
+                            logger.warning(
+                                "Mux failed for job %s — using silent animation clip",
+                                job_id,
+                            )
+                            lesson_video_url = silent_video
                     else:
                         lesson_video_url = silent_video
                 except Exception as exc:
@@ -344,8 +355,9 @@ async def run_lesson_video_job(
                     debug_log(
                         "lesson_video.py:animation_failed",
                         str(exc)[:200],
-                        {"job_id": job_id},
+                        {"job_id": job_id, "anim_timeout": anim_timeout},
                         hypothesis_id="H1",
+                        run_id="post-fix",
                     )
                     # #endregion
                     _phase("Animation unavailable — using still image fallback", 75)

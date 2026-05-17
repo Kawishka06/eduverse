@@ -23,8 +23,23 @@ def _allowed_hosts() -> frozenset[str]:
     return frozenset(hosts)
 
 
+def _is_lesson_video_file_url(url: str) -> bool:
+    """Allow saved lesson MP4 URLs served by our API (dev uses http://localhost)."""
+    if "/lesson-video/" not in url or "/file" not in url:
+        return False
+    settings = get_settings()
+    parsed = urlparse(url.strip())
+    host = (parsed.hostname or "").lower()
+    if not settings.is_production and host in ("localhost", "127.0.0.1"):
+        return True
+    api_host = (urlparse(settings.api_public_url).hostname or "").lower()
+    return bool(api_host and host == api_host)
+
+
 def assert_https_url_allowed(url: str | None, *, field: str = "url") -> None:
     if not url or not str(url).strip():
+        return
+    if _is_lesson_video_file_url(str(url)):
         return
     parsed = urlparse(str(url).strip())
     if parsed.scheme != "https":

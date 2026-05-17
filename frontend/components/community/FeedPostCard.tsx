@@ -10,7 +10,9 @@ import {
   type PostComment,
 } from "@/lib/api";
 import { isAllowedImageUrl } from "@/lib/allowed-image-url";
+import LessonVideoPlayer from "@/components/LessonVideoPlayer";
 import MemeCard from "@/components/MemeCard";
+import { parseLessonVideoJobId } from "@/lib/lesson-video-url";
 import { mergeCommentsById } from "@/lib/merge-comments";
 import { feedCaptionText, parseMemePostCaption } from "@/lib/meme-post";
 
@@ -54,9 +56,19 @@ export default function FeedPostCard({
     () => feedCaptionText(post.caption),
     [post.caption],
   );
-  const safeImageUrl = useMemo(
-    () => (isAllowedImageUrl(post.content_url) ? post.content_url : null),
+  const lessonJobId = useMemo(
+    () => parseLessonVideoJobId(post.content_url),
     [post.content_url],
+  );
+  const isLessonVideo = Boolean(lessonJobId);
+  const safeImageUrl = useMemo(
+    () =>
+      post.type === "video" || isLessonVideo
+        ? null
+        : isAllowedImageUrl(post.content_url)
+          ? post.content_url
+          : null,
+    [post.content_url, post.type, isLessonVideo],
   );
 
   useEffect(() => {
@@ -188,6 +200,20 @@ export default function FeedPostCard({
           topText={memeMeta.top}
           bottomText={memeMeta.bottom}
           alt={feedCaption ?? "Meme"}
+        />
+      ) : isLessonVideo && lessonJobId ? (
+        <LessonVideoPlayer
+          jobId={lessonJobId}
+          url={post.content_url}
+          className="aspect-video w-full bg-zinc-900"
+        />
+      ) : post.type === "video" && isAllowedImageUrl(post.content_url) ? (
+        <video
+          src={post.content_url}
+          controls
+          playsInline
+          preload="metadata"
+          className="aspect-video w-full bg-zinc-900"
         />
       ) : safeImageUrl ? (
         /* eslint-disable-next-line @next/next/no-img-element */
