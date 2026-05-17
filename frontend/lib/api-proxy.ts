@@ -1,9 +1,9 @@
 /** Server-side proxy to FastAPI — used by Next.js route handlers only. */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { getBackendOrigin } from "@/lib/api-base";
 
 export function backendUrl(path: string): string {
-  const base = BACKEND_URL.replace(/\/$/, "");
+  const base = getBackendOrigin();
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${base}${p}`;
 }
@@ -29,7 +29,7 @@ export async function proxyJson(
     return Response.json(
       {
         detail:
-          "Cannot reach the API server. Start the backend: cd backend && uvicorn main:app --reload",
+          "Cannot reach the API server. Set API_URL on Vercel to your deployed FastAPI host.",
       },
       { status: 503 },
     );

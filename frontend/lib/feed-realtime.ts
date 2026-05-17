@@ -1,4 +1,5 @@
 import type { PostComment } from "@/lib/api";
+import { getBackendOrigin } from "@/lib/api-base";
 
 export type FeedWsMessage =
   | {
@@ -17,7 +18,7 @@ export type FeedWsMessage =
   | { type: "pong" };
 
 export function feedWebSocketUrl(token: string): string {
-  const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const api = getBackendOrigin();
   const wsBase = api.replace(/^http/, "ws");
   return `${wsBase}/ws/feed?token=${encodeURIComponent(token)}`;
 }

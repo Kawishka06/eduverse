@@ -1,10 +1,11 @@
+import { getApiBase } from "@/lib/api-base";
 import { getAccessToken } from "@/lib/auth";
 import {
   isAccountSuspendedDetail,
   parseApiDetail,
 } from "@/lib/moderation-error";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = getApiBase();
 
 export type MemeGenerateResponse = {
   image_url: string;

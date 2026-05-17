@@ -1,6 +1,7 @@
+import { getApiBase } from "@/lib/api-base";
 import { createClient } from "@/lib/supabase/client";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = getApiBase();
 
 export async function getAccessToken(): Promise<string | null> {
   const supabase = createClient();

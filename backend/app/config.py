@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     # Public base URL for material file downloads (e.g. http://localhost:8000)
     api_public_url: str = Field(default="http://localhost:8000", validation_alias="API_PUBLIC_URL")
     frontend_public_url: str = Field(
-        default="http://localhost:3000",
+        default="https://eduverse-gold-mu.vercel.app",
         validation_alias="FRONTEND_PUBLIC_URL",
     )
 
@@ -101,6 +101,7 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://172.20.192.1:3000",
+        "https://eduverse-gold-mu.vercel.app",
     ]
     cors_origin_regex: str = (
         r"https?://(localhost|127\.0\.0\.1|"

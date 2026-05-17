@@ -99,7 +99,9 @@ function SubscriptionRowEditor({
   onSave: (userId: string, planSlug: string, status: string, notes: string) => void;
 }) {
   const [planSlug, setPlanSlug] = useState(row.subscription?.plan.slug ?? "starter");
-  const [status, setStatus] = useState(row.subscription?.status ?? "pending");
+  const [status, setStatus] = useState<(typeof STATUSES)[number]>(
+    (row.subscription?.status as (typeof STATUSES)[number]) ?? "pending",
+  );
   const [notes, setNotes] = useState(row.subscription?.notes ?? "");
 
   return (
@@ -127,7 +129,9 @@ function SubscriptionRowEditor({
         <select
           value={status}
           disabled={busy}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) =>
+            setStatus(e.target.value as (typeof STATUSES)[number])
+          }
           className="rounded-lg border border-zinc-200 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
         >
           {STATUSES.map((s) => (

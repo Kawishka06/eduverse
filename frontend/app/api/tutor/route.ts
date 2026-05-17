@@ -1,6 +1,7 @@
+import { getBackendOrigin } from "@/lib/api-base";
 import { createClient } from "@/lib/supabase/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const BACKEND_URL = getBackendOrigin();
 
 export type TutorMode = "standard" | "simple" | "meme";
 

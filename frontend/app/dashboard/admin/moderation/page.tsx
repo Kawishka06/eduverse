@@ -2,9 +2,10 @@ import AdminAuditReportsPanel from "@/components/dashboard/AdminAuditReportsPane
 import AdminModerationPanel from "@/components/dashboard/AdminModerationPanel";
 import type { AdminPostRow, AuditEventRow, ContentReportRow } from "@/lib/api";
 import { fetchAdminPosts } from "@/lib/api-server";
+import { getApiBase } from "@/lib/api-base";
 import { getServerAccessToken } from "@/lib/supabase/server-auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = getApiBase({ server: true });
 
 async function fetchAdminJson<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {

@@ -137,13 +137,31 @@ See `backend/.env.example` for all AI and search variables.
 
 The backend uses the **Supabase Python client** (service role) for all database access — no local PostgreSQL, SQLite, or `DATABASE_URL` required.
 
-**Frontend (example)**
+**Frontend (example)** — see `frontend/.env.example`
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SITE_URL=https://eduverse-gold-mu.vercel.app
+API_URL=https://your-deployed-api.example.com
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
+
+### Deploy frontend on Vercel (GitHub import)
+
+1. Import the repo on [vercel.com](https://vercel.com) and set **Root Directory** to `frontend`.
+2. Add environment variables (Production + Preview):
+
+   | Variable | Value |
+   |----------|--------|
+   | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+   | `NEXT_PUBLIC_SITE_URL` | `https://eduverse-gold-mu.vercel.app` |
+   | `API_URL` | HTTPS URL of your deployed FastAPI backend |
+
+3. In **Supabase → Authentication → URL configuration**, set Site URL and Redirect URLs to your Vercel domain (e.g. `https://eduverse-gold-mu.vercel.app/auth/callback`).
+4. Deploy the **backend** separately (Render, Railway, Fly.io, etc.) with `ENVIRONMENT=production`, `SUPABASE_JWT_SECRET`, and `CORS_ORIGINS=https://eduverse-gold-mu.vercel.app`.
+5. Redeploy Vercel after setting `API_URL`. The app proxies API calls through `/api/backend` so the browser sends cookies and avoids CORS issues.
 
 **Supabase setup**
 
