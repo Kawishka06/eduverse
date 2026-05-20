@@ -84,3 +84,7 @@ def health_db(x_health_token: str | None = Header(default=None, alias="X-Health-
     if settings.is_production:
         return {"status": data.get("status", "unknown")}
     return data
+
+@app.get("/api/health")
+def health():
+    return {"status": "Backend working on Vercel"}

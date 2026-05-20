@@ -1,4 +1,7 @@
 {
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "pip install -r requirements.txt",
   "functions": {
     "api/index.py": {
       "runtime": "vercel-python@0.5.2"
@@ -8,10 +11,6 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/index.py"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/frontend/$1"
     }
   ]
 }
