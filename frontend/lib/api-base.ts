@@ -5,7 +5,7 @@
  * Vercel frontend (if used): set API_URL + auto proxy via /api/backend.
  */
 
-const LOCAL_API = "http://localhost:8000";
+const LOCAL_API = "";
 
 function siteOrigin(): string {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
