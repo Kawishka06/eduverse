@@ -137,31 +137,66 @@ See `backend/.env.example` for all AI and search variables.
 
 The backend uses the **Supabase Python client** (service role) for all database access — no local PostgreSQL, SQLite, or `DATABASE_URL` required.
 
-**Frontend (example)** — see `frontend/.env.example`
+**Frontend (Netlify)** — see `frontend/.env.example`
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-NEXT_PUBLIC_SITE_URL=https://eduverse-gold-mu.vercel.app
-API_URL=https://your-deployed-api.example.com
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_SITE_URL=https://your-app.netlify.app
+NEXT_PUBLIC_API_URL=https://your-eduverse-api.vercel.app
 ```
 
-### Deploy frontend on Vercel (GitHub import)
+**Backend (Vercel)** — see `backend/.env.example`
 
-1. Import the repo on [vercel.com](https://vercel.com) and set **Root Directory** to `frontend`.
-2. Add environment variables (Production + Preview):
+```env
+ENVIRONMENT=production
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+SUPABASE_JWT_SECRET=...
+FAL_KEY=...
+CORS_ORIGINS=http://localhost:3000,https://your-app.netlify.app
+API_PUBLIC_URL=https://your-eduverse-api.vercel.app
+FRONTEND_PUBLIC_URL=https://your-app.netlify.app
+```
+
+### Deploy: backend on Vercel + frontend on Netlify
+
+**1. Vercel (FastAPI API)**
+
+1. [vercel.com](https://vercel.com) → New Project → import this GitHub repo.
+2. Set **Root Directory** to `backend`.
+3. Add all variables from `backend/.env.example` (Production).
+4. Deploy. Note the URL, e.g. `https://eduverse-api.vercel.app`.
+5. Test: `https://your-api.vercel.app/health` → `{"status":"ok",...}`.
+
+**2. Netlify (Next.js UI)**
+
+1. [netlify.com](https://netlify.com) → Add new site → Import from Git.
+2. Set **Base directory** to `frontend`.
+3. Build command: `npm run build` (also set in `frontend/netlify.toml`).
+4. Environment variables:
 
    | Variable | Value |
    |----------|--------|
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-   | `NEXT_PUBLIC_SITE_URL` | `https://eduverse-gold-mu.vercel.app` |
-   | `API_URL` | HTTPS URL of your deployed FastAPI backend |
+   | `NEXT_PUBLIC_SITE_URL` | Your Netlify URL |
+   | `NEXT_PUBLIC_API_URL` | Your **Vercel API** URL from step 1 |
 
-3. In **Supabase → Authentication → URL configuration**, set Site URL and Redirect URLs to your Vercel domain (e.g. `https://eduverse-gold-mu.vercel.app/auth/callback`).
-4. Deploy the **backend** separately (Render, Railway, Fly.io, etc.) with `ENVIRONMENT=production`, `SUPABASE_JWT_SECRET`, and `CORS_ORIGINS=https://eduverse-gold-mu.vercel.app`.
-5. Redeploy Vercel after setting `API_URL`. The app proxies API calls through `/api/backend` so the browser sends cookies and avoids CORS issues.
+5. Deploy.
+
+**3. Supabase auth URLs**
+
+In **Authentication → URL configuration**:
+
+- Site URL: `https://your-app.netlify.app`
+- Redirect URLs: `https://your-app.netlify.app/auth/callback`
+
+**Serverless limits (Vercel API):** Lesson video generation (long jobs, ffmpeg, disk files) and live feed WebSockets work best on a long-running host (Railway/Render). On Vercel serverless, memes/tutor/posts/subscriptions usually work; lesson studio and live feed may be limited.
+
+**Vercel build error `cd frontend && npm install exited with 1`:** Your project **Root Directory** is already `frontend`, but the install command still runs `cd frontend` (which does not exist). Fix: Vercel → Settings → Build & Deployment → set **Install Command** to `npm install` (or leave empty). Do **not** use `cd frontend && npm install` when Root Directory is `frontend`. The API project should use Root Directory `backend` only (no npm).
+
+**Netlify:** Use Base directory `frontend` — build is `npm run build` from `netlify.toml` (no `cd frontend`).
 
 **Supabase setup**
 
